@@ -6,19 +6,30 @@
 #include <vector>
 #include <stack>
 #include <ostream>
+#include <queue>
 
 using namespace std;
+
+namespace graph
+{
+    typedef vector<forward_list<pair<int, int>*>*> AdjList;
+}
+
 
 /*
     generate an adjacency matrix for conceptually describing a fabricated directed
     or undirected graph, isSimple set true means no self-loops and no multiple ed-
     ges between nodes; isSimple set false means it could have self-loops but still
     no multiple edges between nodes. maxWeighted means the max weight of each path
-    in the graph, mode specifies directed or undirected graph.
+    in the graph, mode specifies directed or undirected graph. prob0 means the pr-
+    obability of occurrence of 0
 */
-int** generateAdjacencyMatrix(const int& nodeNum, bool isSimple = true, int maxWeighted = 2, char mode = 'u')
+int** generateAdjacencyMatrix(const int& nodeNum, bool isSimple = true, int maxWeighted = 2, char mode = 'u', float prob0 = 0.6)
 {
     int** matrix = new int*[nodeNum];
+    int occurrence0[100];
+    fill(occurrence0, occurrence0 + 100, 1);
+    fill(occurrence0, occurrence0 + (int)(prob0 * 100), 0);
     for_each(matrix, matrix + nodeNum, [=](int*& ptr){ptr = new int[nodeNum];});
     srand((unsigned int)time(NULL));
     for(int i = 0; i < nodeNum; i++)
@@ -27,7 +38,7 @@ int** generateAdjacencyMatrix(const int& nodeNum, bool isSimple = true, int maxW
         {
             if(i < j || (i == j && !isSimple))
             {
-                matrix[i][j] = rand() % maxWeighted;
+                matrix[i][j] = occurrence0[rand() % 100] * (rand() % maxWeighted);
             }
             else if(isSimple)
             {
@@ -42,7 +53,7 @@ int** generateAdjacencyMatrix(const int& nodeNum, bool isSimple = true, int maxW
         {
             if(i > j) 
             {
-                mode == 'u' || mode == 'U' ? matrix[i][j] = matrix[j][i]: matrix[i][j] = rand() % maxWeighted;
+                mode == 'u' || mode == 'U' ? matrix[i][j] = matrix[j][i]: matrix[i][j] = occurrence0[rand() % 100] * (rand() % maxWeighted);
             }
             else
             {
@@ -95,7 +106,7 @@ void printMatrix(T**& matrix, int m, int n)
     convert an adjacency matrix to whether an in-going or an out-going adjacency 
     list, each node has a pair of information (node, weight) 
 */
-vector<forward_list<pair<int, int>*>*>* adjacencyMatrixToList(int**& matrix, int nodeNum, char mode = 'o')
+graph::AdjList* adjacencyMatrixToList(int**& matrix, int nodeNum, char mode = 'o')
 {
     vector<forward_list<pair<int, int>*>*>* nodeList = new vector<forward_list<pair<int, int>*>*>;
 
@@ -144,7 +155,7 @@ vector<forward_list<pair<int, int>*>*>* adjacencyMatrixToList(int**& matrix, int
 /*
     print the adjacency list, traversal time is O(number of edges)
 */
-void printList(vector<forward_list<pair<int, int>*>*>*& adjList)
+void printList(graph::AdjList*& adjList)
 {
     cout << "The adjacency list is (node, weight):" << endl << endl;
     for(int i = 0; i < adjList->size(); i++)
@@ -164,7 +175,7 @@ void printList(vector<forward_list<pair<int, int>*>*>*& adjList)
     aged by the adjacency list, find the connected component which contains the
     node at startNode, return a set of breadth-based level layers
 */
-vector<vector<int>*>* BFS(vector<forward_list<pair<int, int>*>*>*& adjList, int startNode)
+vector<vector<int>*>* BFS(graph::AdjList*& adjList, int startNode)
 {
     int nodeNum = adjList->size();
     vector<vector<int>*>* layers = new vector<vector<int>*>;
@@ -228,7 +239,7 @@ void printBFSLayers(vector<vector<int>*>*& layers)
     node at startNode, return a set of reachable nodes referring to the node at
     startNode
 */
-vector<int>* DFS(vector<forward_list<pair<int, int>*>*>*& adjList, int startNode)
+vector<int>* DFS(graph::AdjList*& adjList, int startNode)
 {
     int nodeNum = adjList->size();
     bool explored[nodeNum];
@@ -275,15 +286,79 @@ void printDFSNodes(vector<int>*& reachableNodes)
     cout << "}" << endl << endl;
 }
 
+/*
+    find a topological order if it exists
+*/
+vector<int>* topologicalOrder(graph::AdjList*& inGoingList, graph::AdjList*& outGoingList)
+{
+    int nodeNum = inGoingList->size();
+    int indeg[nodeNum];
+    fill(indeg, indeg + nodeNum, 0);
+    stack<int> nodeWithNoInGoing;
+    vector<int>* ordering = new vector<int>;
+
+    for(int i = 0; i < nodeNum; i++)
+    {
+        for(auto node: *(inGoingList->at(i)))
+        {
+            indeg[i]++;
+        }
+    }
+
+    for(int i = 0; i < nodeNum; i++)
+    {
+        if(indeg[i] == 0)
+        {
+            nodeWithNoInGoing.push(i);
+        }
+    }
+
+    while(!nodeWithNoInGoing.empty())
+    {
+        int precedingNode = nodeWithNoInGoing.top();
+        ordering->push_back(precedingNode);
+        nodeWithNoInGoing.pop();
+
+        for(auto node: *(outGoingList->at(precedingNode)))
+        {
+            if((--indeg[node->first]) == 0)
+            {
+                nodeWithNoInGoing.push(node->first);
+            }
+        }
+    }
+
+    if(ordering->size() != nodeNum)
+    {
+        throw "This instance is not a DAG.";
+    }
+
+    return ordering;
+}
+
+/*
+    print the ordering of DAG
+*/
+void printTopologicalOrdering(vector<int>*& ordering)
+{
+    cout << "There exists a topological order, hence, this graph is a DAG, the ordered array is:";
+    cout << endl << endl << "{ ";
+    for(auto node: *ordering)
+    {
+        cout << node << ", ";
+    }
+    cout << "}" << endl << endl;
+}
+
 int main()
 {
     // generate an adjacency matrix to illustrate a supposed graph
-    int nodeNum = 6;
-    int** adjacencyMatrix = generateAdjacencyMatrix(nodeNum, true, 2, 'd');
+    int nodeNum = 8;
+    int** adjacencyMatrix = generateAdjacencyMatrix(nodeNum, true, 2, 'd', 0.65);
     printMatrix<int>(adjacencyMatrix, nodeNum, nodeNum);
 
     // convert the adjacency matrix to an adjacency list that can manage the graph
-    vector<forward_list<pair<int, int>*>*>* adjList = adjacencyMatrixToList(adjacencyMatrix, nodeNum, 'o');
+    graph::AdjList* adjList = adjacencyMatrixToList(adjacencyMatrix, nodeNum, 'o');
     printList(adjList);
 
     // invoke BFS and print the result  
@@ -293,6 +368,13 @@ int main()
     // invoke DFS and print the result  
     vector<int>* resultDFS = DFS(adjList, 0);
     printDFSNodes(resultDFS);
+
+    // invoke topologicalOrder and print the result
+    graph::AdjList* inGoingList = adjacencyMatrixToList(adjacencyMatrix, nodeNum, 'i');
+    graph::AdjList* outGoingList = adjacencyMatrixToList(adjacencyMatrix, nodeNum, 'o');
+    vector<int>* resultTO = topologicalOrder(inGoingList, outGoingList);
+    printTopologicalOrdering(resultTO);
+
 
     system("pause");
 }
