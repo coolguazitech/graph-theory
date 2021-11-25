@@ -1,2 +1,5 @@
-# Quiz
-### a collection of interesting quizzes solved in my methods
+# graph-theory
+## all about graphs
+
+* BFS
+* DFS
