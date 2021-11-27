@@ -6,6 +6,7 @@
 #include <vector>
 #include <stack>
 #include <ostream>
+#include <map>
 #include <queue>
 
 using namespace std;
@@ -13,6 +14,15 @@ using namespace std;
 namespace graph
 {
     typedef vector<forward_list<pair<int, int>*>*> AdjList;
+    class DijkstraPriorityQueueCompare
+    {
+        public:
+        bool operator() (const pair<int, int>& p1, const pair<int, int>& p2) const
+        {
+            return p1.second >= p2.second;
+        }
+    };
+    typedef priority_queue<pair<int, int>, vector<pair<int, int>>, DijkstraPriorityQueueCompare> DijkQueue;
 }
 
 
@@ -350,11 +360,75 @@ void printTopologicalOrdering(vector<int>*& ordering)
     cout << "}" << endl << endl;
 }
 
+/*
+    implementation of Dijkstra's algorithm for single source shortest path pro-
+    blem, which tends to find the shortest path from a given single source, th-
+    e input graph is managed by the out-going adjacency list, note that this a-
+    lgorithm only deals with nonnegative weighted path, return a map from nodes
+    onto distances 
+*/
+map<int, int>* DijkstraSSSP(int**& adjMatrix, int nodeNum, int source)
+{
+    // nodes coupled with their current distances, node with shorter distance has higher priority
+    graph::DijkQueue S;
+    map<int, int>* result = new map<int, int>;
+    stack<pair<int, int>> tempContainer;
+
+    for(int i = 0; i < nodeNum; i++)
+    {
+        i == source ? S.push(pair<int, int>(i, 0)): S.push(pair<int, int>(i, INT_MAX));
+    }
+
+    while(!S.empty())
+    {
+        pair<int, int> curPair = S.top();
+        result->insert(curPair);
+        S.pop();
+
+        while(!S.empty())
+        {
+            pair<int, int> targetPair = S.top();
+            if(curPair.second != INT_MAX)
+            {
+                if(adjMatrix[curPair.first][targetPair.first] > 0)
+                {
+                    if(targetPair.second > adjMatrix[curPair.first][targetPair.first] + curPair.second)
+                    targetPair.second = adjMatrix[curPair.first][targetPair.first] + curPair.second;
+                }
+            }
+
+            tempContainer.push(targetPair);
+            S.pop();
+        }
+
+        while(!tempContainer.empty())
+        {
+            S.push(tempContainer.top());
+            tempContainer.pop();
+        }
+        
+    }
+
+    return result;
+}
+
+void printDijkstraSSSP(map<int, int>*& result, int nodeNum, int source)
+{
+    cout << "The distances of the shortest paths from source node " << source << " to the others are:" << endl << endl;
+    cout << "  node     distance" << endl << "  __________________" << endl << endl;
+
+    for(int i = 0; i < nodeNum; i++)
+    {
+        if((*result)[i] == INT_MAX) cout << setw(6) << i << "     " << setw(8) << "inf" << endl << endl;
+        else cout << setw(6) << i << "     " << setw(8) << (*result)[i] << endl << endl;
+    }
+}
+
 int main()
 {
     // generate an adjacency matrix to illustrate a supposed graph
-    int nodeNum = 8;
-    int** adjacencyMatrix = generateAdjacencyMatrix(nodeNum, true, 2, 'd', 0.65);
+    int nodeNum = 5;
+    int** adjacencyMatrix = generateAdjacencyMatrix(nodeNum, true, 5, 'd', 0.5);
     printMatrix<int>(adjacencyMatrix, nodeNum, nodeNum);
 
     // convert the adjacency matrix to an adjacency list that can manage the graph
@@ -374,6 +448,11 @@ int main()
     graph::AdjList* outGoingList = adjacencyMatrixToList(adjacencyMatrix, nodeNum, 'o');
     vector<int>* resultTO = topologicalOrder(inGoingList, outGoingList);
     printTopologicalOrdering(resultTO);
+
+    // invoke DijkstraSSSP and print the result
+    int source = 0;
+    map<int, int>* resultDijkstra = DijkstraSSSP(adjacencyMatrix, nodeNum, source);
+    printDijkstraSSSP(resultDijkstra, nodeNum, source);
 
 
     system("pause");
