@@ -1,5 +1,5 @@
 # graph-theory
-## all about graphs
+## will cover the following algorithms
 
 * BFS
 * DFS
