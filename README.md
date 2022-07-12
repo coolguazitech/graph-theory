@@ -1,5 +1,5 @@
 # graph-theory
-## will cover the following algorithms
+## will cover the following algorithms and related problems
 
 * BFS
 * DFS
